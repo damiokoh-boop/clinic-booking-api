@@ -15,13 +15,24 @@ export const pool = new pg.Pool({
 });
 
 let ready;
-// Creates the tables on first use, once per running instance.
+// Creates the tables on first use, once per running instance. On serverless hosts a burst
+// of traffic starts many instances at once, so the setup runs under a database-wide lock
+// and is skipped entirely when the tables already exist.
 export function ensureSchema() {
   if (!ready) {
-    const sql = readFileSync(join(here, 'schema.sql'), 'utf8');
-    ready = pool.query(sql).catch((err) => { ready = undefined; throw err; });
+    ready = createSchema().catch((err) => { ready = undefined; throw err; });
   }
   return ready;
+}
+
+async function createSchema() {
+  const exists = await pool.query(`SELECT to_regclass('public.booking_attempts') IS NOT NULL AS ok`);
+  if (exists.rows[0].ok) return;
+  // A transaction-level lock works through connection poolers such as Neon's.
+  await withTransaction(async (db) => {
+    await db.query('SELECT pg_advisory_xact_lock(727274)');
+    await db.query(readFileSync(join(here, 'schema.sql'), 'utf8'));
+  });
 }
 
 // Runs fn(client) inside a transaction and always releases the connection.
