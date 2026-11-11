@@ -64,7 +64,7 @@ api/index.js      Vercel entry point
 src/app.js        Routes and booking logic
 src/db.js         Postgres pool and transaction helper
 src/schema.sql    Tables and indexes
-public/index.html The web page
+src/page.html     The web page
 test/run.mjs      End-to-end tests for every level
 scripts/seed.mjs  Demo slots
 ```
