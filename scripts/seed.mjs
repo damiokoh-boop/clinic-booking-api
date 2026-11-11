@@ -1,4 +1,4 @@
-// Fills the API with a week of demo slots (weekdays, 9:00 to 13:00 Lagos time, two doctors).
+// Fills the API with six weeks of demo slots (weekdays, 9:00 to 13:00 Lagos time, two doctors).
 // Usage: BASE_URL=https://your-app.vercel.app API_KEY=... node scripts/seed.mjs
 const BASE = (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 const providers = ['Dr Ade', 'Dr Bello'];
@@ -6,7 +6,7 @@ const slots = [];
 const day = new Date();
 day.setUTCHours(0, 0, 0, 0);
 
-for (let d = 1; slots.length < 64 && d <= 14; d++) {
+for (let d = 1; d <= 42; d++) {
   const date = new Date(day.getTime() + d * 86400000);
   if ([0, 6].includes(date.getUTCDay())) continue; // weekdays only
   for (const provider of providers) {
