@@ -30,6 +30,10 @@
   button { font: inherit; font-weight: 700; border: 0; border-radius: 10px; padding: 10px 16px; cursor: pointer; background: var(--brand); color: var(--brand-ink); }
   button.ghost { background: transparent; color: var(--brand); border: 1px solid var(--line); }
   button:disabled { opacity: .55; cursor: not-allowed; }
+  .weeknav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; }
+  .weeknav button { padding: 8px 12px; }
+  .weeknav strong { text-align: center; font-size: 15px; }
+  .weeknav .today { font-weight: 500; font-size: 13px; padding: 4px 10px; }
   .day { margin-top: 16px; }
   .day h3 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
@@ -69,6 +73,14 @@
         <select id="provider"><option value="">All doctors</option></select>
       </label>
     </div>
+    <div class="weeknav" id="weeknav">
+      <button type="button" class="ghost" id="prevWeek" aria-label="Previous week">← Prev</button>
+      <div style="display:grid;justify-items:center;gap:2px">
+        <strong id="weekLabel">This week</strong>
+        <button type="button" class="ghost today" id="thisWeek">This week</button>
+      </div>
+      <button type="button" class="ghost" id="nextWeek" aria-label="Next week">Next →</button>
+    </div>
     <div id="slots"><p class="muted">Loading times…</p></div>
   </section>
 
@@ -101,7 +113,11 @@
 
 <script>
   const API_KEY = __API_KEY__;
-  let slots = [], chosen = null, cursor = null;
+  let slots = [], chosen = null, cursor = null, weekStart = null, weekPicked = false;
+  const DAY = 86400000;
+  // Monday 00:00 (local time) of the week that contains the given date.
+  const mondayOf = (d) => { const m = new Date(d); m.setHours(0, 0, 0, 0); m.setDate(m.getDate() - ((m.getDay() + 6) % 7)); return m; };
+  const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
   const $ = (id) => document.getElementById(id);
 
   async function api(path, options = {}) {
@@ -140,9 +156,22 @@
 
   function renderSlots() {
     const upcoming = slots.filter((s) => new Date(s.start) > new Date());
+    const thisMonday = mondayOf(new Date());
+    // Open on the first week that has times, unless the patient has moved weeks themselves.
+    if (!weekStart || (!weekPicked && upcoming.length)) weekStart = upcoming.length ? mondayOf(upcoming[0].start) : thisMonday;
+    if (weekStart < thisMonday) weekStart = thisMonday;
+    const weekEnd = addDays(weekStart, 7);
+    const last = upcoming.length ? new Date(upcoming[upcoming.length - 1].start) : null;
+    const opts = { day: 'numeric', month: 'short' };
+    $('weekLabel').textContent = `${weekStart.toLocaleDateString(undefined, opts)} – ${addDays(weekStart, 6).toLocaleDateString(undefined, opts)}`;
+    $('prevWeek').disabled = weekStart <= thisMonday;
+    $('nextWeek').disabled = !last || last < weekEnd;
+    $('thisWeek').hidden = weekStart.getTime() === thisMonday.getTime();
     if (!upcoming.length) { $('slots').innerHTML = '<p class="muted">No upcoming times right now.</p>'; return; }
+    const inWeek = upcoming.filter((s) => { const t = new Date(s.start); return t >= weekStart && t < weekEnd; });
+    if (!inWeek.length) { $('slots').innerHTML = '<p class="muted">No open times this week. Try the next week.</p>'; return; }
     const days = {};
-    upcoming.forEach((s) => { (days[fmtDay(s.start)] ||= []).push(s); });
+    inWeek.forEach((s) => { (days[fmtDay(s.start)] ||= []).push(s); });
     $('slots').innerHTML = Object.entries(days).map(([day, list]) => `
       <div class="day"><h3>${esc(day)}</h3><div class="slots">${list.map((s) => `
         <button type="button" class="slot ${s.available ? '' : 'taken'}" data-id="${esc(s.id)}"
@@ -161,6 +190,10 @@
   });
 
   $('provider').addEventListener('change', loadSlots);
+  const goWeek = (d) => { weekPicked = true; weekStart = d; renderSlots(); };
+  $('prevWeek').addEventListener('click', () => goWeek(addDays(weekStart, -7)));
+  $('nextWeek').addEventListener('click', () => goWeek(addDays(weekStart, 7)));
+  $('thisWeek').addEventListener('click', () => goWeek(mondayOf(new Date())));
 
   $('form').addEventListener('submit', async (e) => {
     e.preventDefault();
