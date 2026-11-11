@@ -55,7 +55,7 @@ export function createApp() {
 
   // The web page. It is not part of the API, so it does not need the key;
   // the server fills in the key from the environment so it never sits in the code.
-  const page = readFileSync(join(here, '..', 'public', 'index.html'), 'utf8');
+  const page = readFileSync(join(here, 'page.html'), 'utf8');
   app.get(['/', '/index.html'], (req, res) => {
     res.type('html').send(page.replace('__API_KEY__', JSON.stringify(process.env.API_KEY || '')));
   });
