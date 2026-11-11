@@ -17,11 +17,19 @@
       --brand: #3fbf93; --brand-ink: #06130e; --brand-soft: #173a2f; --taken: #1c2925; --danger: #ff8a80; --danger-soft: #3a1f1d;
     }
   }
+  :root[data-theme="dark"] {
+    --bg: #0f1714; --card: #17221e; --ink: #e8f0ec; --muted: #9db1a8; --line: #26352f;
+    --brand: #3fbf93; --brand-ink: #06130e; --brand-soft: #173a2f; --taken: #1c2925; --danger: #ff8a80; --danger-soft: #3a1f1d;
+  }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 "DM Sans", system-ui, sans-serif; }
   header { padding: 32px 16px 8px; max-width: 880px; margin: 0 auto; }
   h1 { font-family: Fraunces, Georgia, serif; font-size: clamp(28px, 5vw, 40px); margin: 0 0 6px; letter-spacing: -0.01em; }
   header p { margin: 0; color: var(--muted); }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .theme { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; font-size: 14px; background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+  .theme .ico { font-size: 16px; line-height: 1; }
+  body, .card, .slot, select, input, .theme { transition: background-color .2s, color .2s, border-color .2s; }
   main { max-width: 880px; margin: 0 auto; padding: 16px 16px 48px; display: grid; gap: 20px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
   .card h2 { margin: 0 0 12px; font-size: 18px; }
@@ -58,11 +66,26 @@
   .muted { color: var(--muted); }
   [hidden] { display: none !important; }
   @media (min-width: 760px) { main { grid-template-columns: 1.4fr 1fr; } .wide { grid-column: 1 / -1; } }
+  @media (max-width: 480px) {
+    header { padding-top: 20px; }
+    .card { padding: 16px; }
+    .theme .txt { display: none; }
+    .weeknav { padding: 6px; }
+    .weeknav button { padding: 8px 10px; font-size: 14px; }
+    .weeknav strong { font-size: 14px; }
+    .slots { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    .slot { padding: 9px 10px; }
+    .slot b { font-size: 13.5px; }
+    .item button { width: 100%; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>Book an appointment</h1>
+  <div class="top">
+    <h1>Book an appointment</h1>
+    <button type="button" class="theme" id="theme" aria-label="Switch to dark mode"><span class="ico" aria-hidden="true">🌙</span><span class="txt">Dark</span></button>
+  </div>
   <p>Pick an open time, enter your details and you're booked.</p>
 </header>
 <main>
@@ -113,6 +136,27 @@
 
 <script>
   const API_KEY = __API_KEY__;
+
+  // Light/dark toggle. Starts from the device setting; the choice is remembered on this device.
+  (function () {
+    const root = document.documentElement, btn = document.getElementById('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    let saved = null;
+    try { saved = localStorage.getItem('theme'); } catch (e) {}
+    const apply = (t) => {
+      root.setAttribute('data-theme', t);
+      const next = t === 'dark' ? 'light' : 'dark';
+      btn.querySelector('.ico').textContent = next === 'dark' ? '🌙' : '☀️';
+      btn.querySelector('.txt').textContent = next === 'dark' ? 'Dark' : 'Light';
+      btn.setAttribute('aria-label', `Switch to ${next} mode`);
+    };
+    apply(saved === 'dark' || saved === 'light' ? saved : (prefersDark ? 'dark' : 'light'));
+    btn.addEventListener('click', () => {
+      const t = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      apply(t);
+      try { localStorage.setItem('theme', t); } catch (e) {}
+    });
+  })();
   let slots = [], chosen = null, cursor = null, weekStart = null, weekPicked = false;
   const DAY = 86400000;
   // Monday 00:00 (local time) of the week that contains the given date.
